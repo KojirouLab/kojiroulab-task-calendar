@@ -118,7 +118,7 @@ authSubmitBtn.addEventListener('click', async () => {
   });
   authSubmitBtn.disabled = false;
   authMsg.textContent = error
-    ? '送信に失敗しました。メールアドレスを確認してください。'
+    ? `送信に失敗しました: ${error.message}`
     : `${email} 宛にログイン用のリンクを送りました。メール内のリンクを開いてください。`;
 });
 

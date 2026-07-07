@@ -6,7 +6,15 @@ const SUPABASE_ANON_KEY = 'sb_publishable_Qjz-ym0gL42g3Hbv8tx8qQ_ylLEt3B_';
 
 let sb = null;
 try {
-  sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  // flowType 'implicit': the default 'pkce' flow requires the browser that
+  // requested the magic link to be the same one that opens it (it needs a
+  // locally-stored code verifier). Email links are routinely opened in a
+  // different app/browser (Gmail's in-app browser, a different Safari tab,
+  // the installed home-screen app), so PKCE silently fails there. Implicit
+  // flow puts the session directly in the link, so any browser can use it.
+  sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+    auth: { flowType: 'implicit' },
+  });
 } catch (e) {
   console.error('Supabase client init failed', e);
 }

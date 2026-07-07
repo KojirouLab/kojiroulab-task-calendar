@@ -216,9 +216,13 @@
 <div id="authGate" class="auth-gate">
   <div class="auth-card">
     <h2>ログイン</h2>
-    <p id="authMsg">続けるにはメールアドレスを入力してください。届いたメール内のリンクを開くとログインできます。</p>
+    <p id="authMsg">続けるにはメールアドレスを入力してください。届いたメールの確認コードでログインできます。</p>
     <input type="email" id="authEmailInput" placeholder="you@example.com" autocomplete="email">
-    <button id="authSubmitBtn">ログインリンクを送る</button>
+    <button id="authSubmitBtn">確認コードを送る</button>
+    <div id="authCodeRow" style="display:none; margin-top:12px;">
+      <input type="text" id="authCodeInput" placeholder="123456" inputmode="numeric" autocomplete="one-time-code">
+      <button id="authVerifyBtn">コードを確認</button>
+    </div>
   </div>
 </div>
 <div id="app" style="display:none;">

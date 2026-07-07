@@ -99,10 +99,19 @@ document.addEventListener('visibilitychange', () => {
 });
 
 // ---- auth gate ----
+// Uses the emailed 6-digit code (verifyOtp) rather than the clicked magic
+// link: tapping the link routinely opens in a different browser/app context
+// (Gmail's in-app browser, Safari vs. the installed home-screen app) than
+// where the session needs to end up, so it silently never completes there.
+// Typing the code into whichever context is currently open sidesteps that
+// entirely.
 const authGate = document.getElementById('authGate');
 const authEmailInput = document.getElementById('authEmailInput');
 const authSubmitBtn = document.getElementById('authSubmitBtn');
 const authMsg = document.getElementById('authMsg');
+const authCodeRow = document.getElementById('authCodeRow');
+const authCodeInput = document.getElementById('authCodeInput');
+const authVerifyBtn = document.getElementById('authVerifyBtn');
 
 function showAuthGate(msg) {
   authGate.style.display = 'flex';
@@ -120,14 +129,30 @@ authSubmitBtn.addEventListener('click', async () => {
   if (!email) return;
   authSubmitBtn.disabled = true;
   authMsg.textContent = '送信中…';
-  const { error } = await sb.auth.signInWithOtp({
-    email,
-    options: { emailRedirectTo: window.location.href },
-  });
+  const { error } = await sb.auth.signInWithOtp({ email });
   authSubmitBtn.disabled = false;
-  authMsg.textContent = error
-    ? `送信に失敗しました: ${error.message}`
-    : `${email} 宛にログイン用のリンクを送りました。メール内のリンクを開いてください。`;
+  if (error) {
+    authMsg.textContent = `送信に失敗しました: ${error.message}`;
+    return;
+  }
+  authMsg.textContent = `${email} 宛に6桁の確認コードを送りました。メールを確認して下に入力してください。`;
+  authCodeRow.style.display = 'block';
+  authCodeInput.focus();
+});
+
+authVerifyBtn.addEventListener('click', async () => {
+  if (!sb) return;
+  const email = authEmailInput.value.trim();
+  const token = authCodeInput.value.trim();
+  if (!email || !token) return;
+  authVerifyBtn.disabled = true;
+  authMsg.textContent = '確認中…';
+  const { error } = await sb.auth.verifyOtp({ email, token, type: 'email' });
+  authVerifyBtn.disabled = false;
+  if (error) {
+    authMsg.textContent = `確認に失敗しました: ${error.message}`;
+  }
+  // success falls through to onAuthStateChange, which hides the gate.
 });
 
 if (sb) {

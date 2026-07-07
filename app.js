@@ -963,8 +963,12 @@ function openTaskForm(opts){
   overlay.querySelector('#kindOptions').addEventListener('click', e=>{
     const opt = e.target.closest('[data-kind]'); if(!opt) return;
     chosenKind = opt.dataset.kind;
-    overlay.querySelectorAll('#kindOptions .recur-opt').forEach(o=>o.classList.remove('sel'));
+    overlay.querySelectorAll('#kindOptions .recur-opt').forEach(o=>{
+      o.classList.remove('sel');
+      o.querySelector('input').checked = false;
+    });
     opt.classList.add('sel');
+    opt.querySelector('input').checked = true;
     overlay.querySelector('#dueField').style.display = chosenKind==='schedule' ? 'none' : 'block';
     overlay.querySelector('#endField').style.display = chosenKind==='schedule' ? 'block' : 'none';
     overlay.querySelector('#nameLabel').textContent = chosenKind==='schedule' ? '予定名' : 'タスク名';

@@ -1,4 +1,4 @@
-const CACHE_NAME = 'task-calendar-v1';
+const CACHE_NAME = 'task-calendar-v2';
 const SHELL_FILES = [
   './',
   './index.html',
@@ -29,16 +29,15 @@ self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
   if (event.request.method !== 'GET' || url.origin !== self.location.origin) return;
 
+  // network-first: always try to get the latest code/UI; only fall back to
+  // the cached copy when offline, so deployed fixes show up immediately.
   event.respondWith(
-    caches.match(event.request).then((cached) => {
-      const network = fetch(event.request)
-        .then((res) => {
-          const copy = res.clone();
-          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy));
-          return res;
-        })
-        .catch(() => cached);
-      return cached || network;
-    })
+    fetch(event.request)
+      .then((res) => {
+        const copy = res.clone();
+        caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy));
+        return res;
+      })
+      .catch(() => caches.match(event.request))
   );
 });

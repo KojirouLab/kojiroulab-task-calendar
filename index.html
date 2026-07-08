@@ -54,6 +54,14 @@
     background:#fff; color:#c0392b; font-size:11.5px; font-weight:700; padding:5px 10px; border-radius:7px;
   }
 
+  .due-banner{
+    display:flex; align-items:center; gap:10px; padding:10px 14px;
+    background:#fdeceb; color:#8a2a1f; font-size:12.5px; font-weight:600;
+    border-bottom:1px solid #f3c9c4; flex-shrink:0;
+  }
+  .due-banner span{flex:1;}
+  .due-banner button{font-size:16px; color:#8a2a1f; line-height:1; padding:0 2px;}
+
   .view-tabs{display:flex; gap:6px; padding:8px 12px; background:var(--panel); border-bottom:1px solid var(--line); flex-shrink:0;}
   .view-tab{flex:1; font-size:12.5px; font-weight:700; padding:7px 0; border-radius:8px; color:var(--sub); background:var(--bg);}
   .view-tab.sel{background:var(--accent); color:#fff;}
@@ -230,6 +238,10 @@
   </div>
 </div>
 <div id="app" style="display:none;">
+  <div id="dueBanner" class="due-banner" style="display:none;">
+    <span id="dueBannerMsg"></span>
+    <button id="dueBannerClose">×</button>
+  </div>
   <header>
     <h1>タスクカレンダー</h1>
     <p class="sub">登録日から完了まで日付を跨いでブロックが伸びます。日付をタップして詳細・記録を確認できます。</p>

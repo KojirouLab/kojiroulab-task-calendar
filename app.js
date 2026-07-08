@@ -145,6 +145,13 @@ function isOverdue(series, occState){
   return todayStr() > due;
 }
 
+function dueTodayItems(){
+  const t = todayStr();
+  return occurrencesOnDate(t).filter(it=>
+    !isSchedule(it.series) && displayDueDate(it.series, it.occState) === t && !it.occState.completedDate
+  );
+}
+
 function occurrencesOnDate(dateStr){
   const list = [];
   state.series.forEach(series=>{
@@ -610,6 +617,20 @@ function render(){
   else if(viewMode==='week') renderWeekView();
   else if(viewMode==='todo') renderTodoView();
   else renderDayView();
+  checkDueBanner();
+}
+
+// ---- due-today banner ----
+function checkDueBanner(){
+  const banner = document.getElementById('dueBanner');
+  const t = todayStr();
+  const dismissed = localStorage.getItem('dueBannerDismissed') === t;
+  const items = dueTodayItems();
+  if(dismissed || items.length===0){ banner.style.display = 'none'; return; }
+  const names = items.slice(0,3).map(it=>displayName(it.series, it.occState)).join('、');
+  const more = items.length > 3 ? ` 他${items.length-3}件` : '';
+  document.getElementById('dueBannerMsg').textContent = `今日期限: ${names}${more}`;
+  banner.style.display = 'flex';
 }
 
 // ---- drag to move a task bar ----
@@ -1330,6 +1351,10 @@ document.querySelectorAll('.view-tab').forEach(tab=>{
 document.getElementById('retrySaveBtn').addEventListener('click', ()=>{
   if(saveDebounceTimer){ clearTimeout(saveDebounceTimer); saveDebounceTimer = null; }
   flushSave();
+});
+document.getElementById('dueBannerClose').addEventListener('click', ()=>{
+  localStorage.setItem('dueBannerDismissed', todayStr());
+  document.getElementById('dueBanner').style.display = 'none';
 });
 bindGridDragHandlers();
 

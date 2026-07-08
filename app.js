@@ -164,7 +164,7 @@ function occurrencesOnDate(dateStr){
       }
     });
   });
-  list.sort((a,b)=> (importanceRank(a.series)-importanceRank(b.series)) || ((a.series.order??0)-(b.series.order??0)) || (a.occDate < b.occDate ? -1 : (a.occDate > b.occDate ? 1 : 0)));
+  list.sort((a,b)=> ((a.occState.completedDate?1:0)-(b.occState.completedDate?1:0)) || (importanceRank(a.series)-importanceRank(b.series)) || ((a.series.order??0)-(b.series.order??0)) || (a.occDate < b.occDate ? -1 : (a.occDate > b.occDate ? 1 : 0)));
   return list;
 }
 

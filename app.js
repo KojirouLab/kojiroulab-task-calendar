@@ -543,11 +543,27 @@ function wireTodoItemsContainer(container){
 }
 
 function wireDayItemsContainer(container, dateStr, label){
+  // #dayView is a persistent element whose innerHTML gets replaced on every
+  // render (day navigation, completing a task, etc.) without ever being
+  // removed itself. Re-running this function on every render (as callers
+  // do) used to attach a new listener each time, so a single click fired
+  // N times and toggled "complete" back off. Wire it once per container,
+  // and for #dayView specifically recompute dateStr/label from the current
+  // viewDate at click time instead of trusting the (possibly stale) values
+  // captured when it was first wired.
+  if(container.dataset.wired) return;
+  container.dataset.wired = '1';
+  const isPersistentDayView = container.id === 'dayView';
   container.addEventListener('click', e=>{
+    let curDateStr = dateStr, curLabel = label;
+    if(isPersistentDayView){
+      curDateStr = fmt(viewDate);
+      curLabel = `${viewDate.getFullYear()}年${viewDate.getMonth()+1}月${viewDate.getDate()}日（${WD[viewDate.getDay()]}）`;
+    }
     const act = e.target.closest('[data-act]');
     if(!act) return;
     if(act.dataset.act==='close'){ closeSheet(); return; }
-    if(act.dataset.act==='newhere'){ closeSheet(); openTaskForm({ startDate: dateStr }); return; }
+    if(act.dataset.act==='newhere'){ closeSheet(); openTaskForm({ startDate: curDateStr }); return; }
     const card = act.closest('.day-task-item');
     if(!card) return;
     const sid = card.dataset.sid, occDate = card.dataset.occ;
@@ -556,28 +572,28 @@ function wireDayItemsContainer(container, dateStr, label){
     if(act.dataset.act==='complete'){
       const occState = series.occurrences[occDate] = series.occurrences[occDate] || { completedDate:null, logs:{}, nameOverride:null, colorOverride:null, memoOverride:null, timeOverride:null, dueDateOverride:null, endOffsetOverride:null };
       occState.completedDate = occState.completedDate ? null : todayStr();
-      save(); refreshDayContext(dateStr, label);
+      save(); refreshDayContext(curDateStr, curLabel);
     }
     if(act.dataset.act==='log'){
       closeSheet();
-      openLogSheet(sid, occDate, dateStr, label);
+      openLogSheet(sid, occDate, curDateStr, curLabel);
     }
     if(act.dataset.act==='edit'){
       closeSheet();
-      startEditFlow(sid, occDate, dateStr, label);
+      startEditFlow(sid, occDate, curDateStr, curLabel);
     }
     if(act.dataset.act==='delete'){
       closeSheet();
-      startDeleteFlow(sid, occDate, dateStr, label);
+      startDeleteFlow(sid, occDate, curDateStr, curLabel);
     }
     if(act.dataset.act==='moveup' || act.dataset.act==='movedown'){
-      const items = occurrencesOnDate(dateStr);
+      const items = occurrencesOnDate(curDateStr);
       const idx = items.findIndex(it=>it.series.id===sid);
       const swapIdx = act.dataset.act==='moveup' ? idx-1 : idx+1;
       if(idx<0 || swapIdx<0 || swapIdx>=items.length) return;
       const a = items[idx].series, b = items[swapIdx].series;
       const tmp = a.order ?? 0; a.order = b.order ?? 0; b.order = tmp;
-      save(); refreshDayContext(dateStr, label);
+      save(); refreshDayContext(curDateStr, curLabel);
     }
   });
 }

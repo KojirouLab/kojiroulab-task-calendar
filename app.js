@@ -2,6 +2,15 @@ const COLORS = ['#c1622d','#3d6b8c','#5a8a4f','#8a5a9c','#b0894a','#4a7a8a','#a0
 const WD = ['日','月','火','水','木','金','土'];
 const NTH_LABEL = {1:'第1',2:'第2',3:'第3',4:'第4',5:'最終'};
 const CAP_LANES = 3;
+const IMPORTANCE_LEVELS = [
+  {key:'highest', label:'最高'},
+  {key:'high', label:'高'},
+  {key:'medium', label:'中'},
+  {key:'low', label:'低'},
+];
+const IMPORTANCE_RANK = {highest:0, high:1, medium:2, low:3};
+function taskImportance(series){ return series.importance || 'medium'; }
+function importanceRank(series){ return IMPORTANCE_RANK[taskImportance(series)] ?? 2; }
 
 let viewDate = new Date(); // focused date, drives month/week/day views
 let viewMode = 'month'; // 'month' | 'week' | 'day'
@@ -148,7 +157,7 @@ function occurrencesOnDate(dateStr){
       }
     });
   });
-  list.sort((a,b)=> ((a.series.order??0)-(b.series.order??0)) || (a.occDate < b.occDate ? -1 : (a.occDate > b.occDate ? 1 : 0)));
+  list.sort((a,b)=> (importanceRank(a.series)-importanceRank(b.series)) || ((a.series.order??0)-(b.series.order??0)) || (a.occDate < b.occDate ? -1 : (a.occDate > b.occDate ? 1 : 0)));
   return list;
 }
 
@@ -374,9 +383,12 @@ function dayItemsHtml(dateStr, label){
     const rangeText = sched
       ? (it.occDate === it.activeEnd ? it.occDate : `${it.occDate.slice(5)} 〜 ${it.activeEnd.slice(5)}`)
       : `${it.occDate.slice(5)} 〜 ${isDone ? it.occState.completedDate.slice(5) : '進行中'}`;
+    const imp = taskImportance(it.series);
+    const impBadge = imp === 'medium' ? '' : `<span class="dti-imp imp-${imp}">${IMPORTANCE_LEVELS.find(l=>l.key===imp).label}</span>`;
     return `<div class="day-task-item ${sched?'schedule':''}" data-sid="${it.series.id}" data-occ="${it.occDate}">
       <div class="dti-top">
         <span class="dti-dot" style="background:${displayColor(it.series, it.occState)}"></span>
+        ${impBadge}
         ${displayTime(it.series, it.occState) ? `<span class="dti-time">${displayTime(it.series, it.occState)}</span>` : ''}
         <span class="dti-name ${isDone?'done':''}">${escapeHtml(displayName(it.series, it.occState))}</span>
         ${sched ? `<span class="dti-tag">予定</span>` : ''}
@@ -825,6 +837,7 @@ function startEditFlow(sid, occDate, backDateStr, backLabel){
     recurrence: series.recurrence,
     isRecurring: series.recurrence.type !== 'none',
     kind: series.kind || 'task',
+    importance: taskImportance(series),
     endDate: fmt(addDays(parseDate(occDate), displayEndOffset(series, occState))),
     backDateStr, backLabel
   });
@@ -876,6 +889,7 @@ function openTaskForm(opts){
   const isEdit = opts.mode==='edit';
   let chosenColor = opts.color || COLORS[state.series.length % COLORS.length];
   let chosenKind = opts.kind || 'task';
+  let chosenImportance = opts.importance || 'medium';
   let recType = (opts.recurrence && opts.recurrence.type) || 'none';
   let recWeekday = (opts.recurrence && opts.recurrence.weekday) ?? new Date().getDay();
   let recNth = (opts.recurrence && opts.recurrence.nth) || 1;
@@ -883,6 +897,7 @@ function openTaskForm(opts){
   const endVal = opts.endDate || startVal;
 
   const swatches = COLORS.map(c=>`<div class="swatch ${c===chosenColor?'sel':''}" style="background:${c}" data-color="${c}"></div>`).join('');
+  const impHtml = IMPORTANCE_LEVELS.map(l=>`<button type="button" class="view-tab ${l.key===chosenImportance?'sel':''}" data-imp="${l.key}">${l.label}</button>`).join('');
   const recDefs = [
     {key:'none', label:'繰り返しなし'},
     {key:'weekly', label:'毎週（同じ曜日）'},
@@ -949,6 +964,10 @@ function openTaskForm(opts){
       <div class="colorset" id="tColors">${swatches}</div>
     </div>
     <div class="field">
+      <label>重要度</label>
+      <div style="display:flex; gap:6px;" id="impOptions">${impHtml}</div>
+    </div>
+    <div class="field">
       <label>繰り返し</label>
       <div class="recur-options" id="recOptions">${recHtml}</div>
       <div class="preview-line" id="recPreview"></div>
@@ -976,6 +995,13 @@ function openTaskForm(opts){
     if(!isEdit){
       overlay.querySelector('#formSub').textContent = chosenKind==='schedule' ? '決まった日程を、完了・未完了の概念なしで表示します。' : '登録した日から今日までブロックが自動で伸びます。';
     }
+  });
+
+  overlay.querySelector('#impOptions').addEventListener('click', e=>{
+    const opt = e.target.closest('[data-imp]'); if(!opt) return;
+    chosenImportance = opt.dataset.imp;
+    overlay.querySelectorAll('#impOptions .view-tab').forEach(o=>o.classList.remove('sel'));
+    opt.classList.add('sel');
   });
 
   function updatePreview(){
@@ -1042,7 +1068,7 @@ function openTaskForm(opts){
 
       if(!isEdit){
         const nextOrder = state.series.length ? Math.max(...state.series.map(s=>s.order??0)) + 1 : 0;
-        state.series.push({ id: uid(), name, color: chosenColor, memo, time, dueDate: dueVal, kind: kindVal, endOffsetDays, recurrence, startDate: dateVal, until: null, deletedDates: [], occurrences: {}, order: nextOrder });
+        state.series.push({ id: uid(), name, color: chosenColor, memo, time, dueDate: dueVal, kind: kindVal, importance: chosenImportance, endOffsetDays, recurrence, startDate: dateVal, until: null, deletedDates: [], occurrences: {}, order: nextOrder });
         save(); render(); closeSheet();
         return;
       }
@@ -1064,10 +1090,13 @@ function openTaskForm(opts){
           }
           series.startDate = dateVal;
         }
-        series.name = name; series.color = chosenColor; series.memo = memo; series.time = time; series.dueDate = dueVal; series.kind = kindVal; series.endOffsetDays = endOffsetDays; series.recurrence = recurrence;
+        series.name = name; series.color = chosenColor; series.memo = memo; series.time = time; series.dueDate = dueVal; series.kind = kindVal; series.importance = chosenImportance; series.endOffsetDays = endOffsetDays; series.recurrence = recurrence;
         save(); refreshDayContext(opts.backDateStr, opts.backLabel);
         return;
       }
+      // recurring: importance always applies to the whole series (it isn't a
+      // per-occurrence concept), independent of the this-only/future choice below
+      series.importance = chosenImportance;
       // recurring: ask scope
       closeSheet();
       const fieldsNote = kindVal==='schedule' ? '名前・色・終了日' : '名前・色・期限';
@@ -1090,7 +1119,7 @@ function openTaskForm(opts){
             series.deletedDates.push(originalOccDate);
             delete series.occurrences[originalOccDate];
             const oneOff = {
-              id: uid(), name, color: chosenColor, memo, time, dueDate: dueVal, kind: kindVal, endOffsetDays, recurrence: {type:'none'},
+              id: uid(), name, color: chosenColor, memo, time, dueDate: dueVal, kind: kindVal, importance: chosenImportance, endOffsetDays, recurrence: {type:'none'},
               startDate: dateVal, until: null, deletedDates: [], occurrences: {}, order: series.order
             };
             if(oldOccState) oneOff.occurrences[dateVal] = shiftOccStateDates(oldOccState, daysDelta);
@@ -1109,7 +1138,7 @@ function openTaskForm(opts){
           series.until = originalOccDate;
           const newStart = dateChanged ? dateVal : originalOccDate;
           const newSeries = {
-            id: uid(), name, color: chosenColor, memo, time, dueDate: dueVal, kind: kindVal, endOffsetDays, recurrence,
+            id: uid(), name, color: chosenColor, memo, time, dueDate: dueVal, kind: kindVal, importance: chosenImportance, endOffsetDays, recurrence,
             startDate: newStart, until: null, deletedDates: [],
             occurrences: {}, order: series.order
           };

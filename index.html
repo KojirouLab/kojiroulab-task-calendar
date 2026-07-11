@@ -97,8 +97,8 @@
   .month-grid{display:flex; flex-direction:column;}
   .week-row{display:grid; grid-template-columns:repeat(7,1fr) 92px; border-bottom:1px solid var(--line);}
   .day-cell{
-    border-right:1px solid var(--line); padding:4px 3px 6px; min-height:78px;
-    display:flex; flex-direction:column; gap:2px;
+    border-right:1px solid var(--line); padding:4px 3px 6px; min-height:78px; min-width:0;
+    display:flex; flex-direction:column; gap:2px; overflow:hidden;
   }
   .week-view .day-cell{min-height:180px;}
   .week-memo{border-left:1px solid var(--line); background:#faf8f3; padding:4px;}

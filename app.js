@@ -1,7 +1,7 @@
-const COLORS = ['#c1622d','#3d6b8c','#5a8a4f','#8a5a9c','#b0894a','#4a7a8a','#a04a5a','#6b7a3d'];
+const COLORS = ['#e64980','#3b82f6','#10b981','#8b5cf6','#f97316','#06b6d4','#ef4444','#65a30d'];
 const WD = ['日','月','火','水','木','金','土'];
 const NTH_LABEL = {1:'第1',2:'第2',3:'第3',4:'第4',5:'最終'};
-const CAP_LANES = 3;
+const CAP_LANES = Infinity; // no cap: month cells grow to fit every bar instead of hiding extras behind "+N"
 const IMPORTANCE_LEVELS = [
   {key:'highest', label:'最高'},
   {key:'high', label:'高'},

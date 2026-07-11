@@ -204,6 +204,14 @@
   .todo-due.overdue{color:#c0392b; font-weight:700;}
   .todo-icon-btn{border:none; background:none; font-size:14px; padding:4px 6px; color:var(--sub); flex-shrink:0;}
 
+  .inbox-add-row{display:flex; gap:8px; margin-bottom:14px;}
+  .inbox-add-row input{flex:1; border:1px solid var(--line); border-radius:8px; padding:10px 11px; font-size:14px; font-family:inherit; background:#fafaf8; color:var(--ink);}
+  .inbox-add-row button{flex-shrink:0; background:var(--accent); color:#fff; font-size:13px; font-weight:600; padding:0 16px; border-radius:8px;}
+  .inbox-row{display:flex; align-items:center; gap:8px; padding:10px 4px; border-bottom:1px solid var(--line);}
+  .inbox-row:last-child{border-bottom:none;}
+  .inbox-text{font-size:14px; flex:1; min-width:0; cursor:pointer; word-break:break-word; line-height:1.5;}
+  .inbox-sub{font-size:10.5px; color:var(--sub); margin-top:8px; line-height:1.6;}
+
   .loglist{list-style:none; margin:8px 0 4px 18px; padding:0; display:flex; flex-direction:column; gap:6px;}
   .logitem{display:flex; justify-content:space-between; gap:8px; background:#fafaf8; border:1px solid var(--line); border-radius:8px; padding:7px 9px;}
   .logitem .txt{font-size:12.5px; line-height:1.5; white-space:pre-wrap; word-break:break-word;}
@@ -260,6 +268,7 @@
     <button class="view-tab" id="tabWeek" data-mode="week">週</button>
     <button class="view-tab" id="tabDay" data-mode="day">日</button>
     <button class="view-tab" id="tabTodo" data-mode="todo">未完了</button>
+    <button class="view-tab" id="tabInbox" data-mode="inbox">インボックス</button>
   </div>
   <div class="weekday-row" id="weekdayRow">
     <div class="wd-sun">日</div><div>月</div><div>火</div><div>水</div><div>木</div><div>金</div><div class="wd-sat">土</div><div class="wd-memo-head">メモ</div>
@@ -269,6 +278,7 @@
     <div id="weekView" style="display:none;"></div>
     <div id="dayView" style="display:none;"></div>
     <div id="todoView" style="display:none; padding:12px;"></div>
+    <div id="inboxView" style="display:none; padding:12px;"></div>
   </div>
 </div>
 <button class="fab" id="fabAdd">＋</button>

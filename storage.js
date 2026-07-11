@@ -19,7 +19,7 @@ try {
   console.error('Supabase client init failed', e);
 }
 
-let state = { series: [], weeklyMemos: {} };
+let state = { series: [], weeklyMemos: {}, inbox: [] };
 let loaded = false;
 
 async function load() {
@@ -34,9 +34,9 @@ async function load() {
       .maybeSingle();
     if (error) throw error;
     const raw = data ? data.data : null;
-    if (Array.isArray(raw)) return { series: raw, weeklyMemos: {} };
-    if (raw) return { series: raw.series || [], weeklyMemos: raw.weeklyMemos || {} };
-    return { series: [], weeklyMemos: {} };
+    if (Array.isArray(raw)) return { series: raw, weeklyMemos: {}, inbox: [] };
+    if (raw) return { series: raw.series || [], weeklyMemos: raw.weeklyMemos || {}, inbox: raw.inbox || [] };
+    return { series: [], weeklyMemos: {}, inbox: [] };
   }
 
   let result;
@@ -46,11 +46,12 @@ async function load() {
     try {
       result = await attempt();
     } catch (e2) {
-      result = { series: [], weeklyMemos: {} };
+      result = { series: [], weeklyMemos: {}, inbox: [] };
     }
   }
   state.series = result.series;
   state.weeklyMemos = result.weeklyMemos;
+  state.inbox = result.inbox;
   state.series.forEach((s, i) => { if (typeof s.order !== 'number') s.order = i; });
   loaded = true;
   render();
@@ -59,7 +60,7 @@ async function load() {
 let pendingSavePayload = null;
 let saveDebounceTimer = null;
 function save() {
-  pendingSavePayload = { series: state.series, weeklyMemos: state.weeklyMemos };
+  pendingSavePayload = { series: state.series, weeklyMemos: state.weeklyMemos, inbox: state.inbox };
   if (saveDebounceTimer) clearTimeout(saveDebounceTimer);
   saveDebounceTimer = setTimeout(flushSave, 600);
 }

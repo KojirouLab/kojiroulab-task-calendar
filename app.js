@@ -509,6 +509,11 @@ function openTodoDetailSheet(sid, occDate){
 
 
 function wireTodoItemsContainer(container){
+  // see the comment in wireDayItemsContainer: #todoView is persistent and
+  // re-rendered in place, so this must only wire once or clicks/checkbox
+  // toggles fire multiple times and cancel each other out.
+  if(container.dataset.wired) return;
+  container.dataset.wired = '1';
   container.addEventListener('click', e=>{
     const act = e.target.closest('[data-act]');
     if(!act) return;
@@ -539,6 +544,60 @@ function wireTodoItemsContainer(container){
       save();
       setTimeout(render, 220); // brief pause so the check animation is visible before the row disappears
     }
+  });
+}
+
+// ---- inbox (GTD-style quick capture, triaged into tasks later) ----
+function renderInboxView(){
+  const host = document.getElementById('inboxView');
+  host.innerHTML = `
+    <div class="inbox-add-row">
+      <input type="text" id="inboxAddInput" placeholder="思いついたことをメモ...">
+      <button id="inboxAddBtn">追加</button>
+    </div>
+    <div id="inboxItemsWrap">${inboxItemsHtml()}</div>
+    <p class="inbox-sub">メモをタップすると、タスク登録フォームに内容が入った状態で開きます。登録すると、このインボックスからは消えます。</p>`;
+  wireInboxContainer(host);
+}
+
+function inboxItemsHtml(){
+  const items = [...state.inbox].sort((a,b)=> b.createdAt.localeCompare(a.createdAt));
+  if(items.length===0) return `<p class="dayview-empty">インボックスは空です。</p>`;
+  return items.map(m=>`
+    <div class="inbox-row" data-id="${m.id}">
+      <span class="inbox-text" data-act="triage">${escapeHtml(m.text)}</span>
+      <button class="todo-icon-btn" data-act="delete" title="削除">🗑</button>
+    </div>`).join('');
+}
+
+function wireInboxContainer(container){
+  if(container.dataset.wired) return;
+  container.dataset.wired = '1';
+  const addOne = ()=>{
+    const input = container.querySelector('#inboxAddInput');
+    const text = input.value.trim();
+    if(!text) return;
+    state.inbox.push({ id: uid(), text, createdAt: new Date().toISOString() });
+    save();
+    input.value = '';
+    render();
+    container.querySelector('#inboxAddInput').focus();
+  };
+  container.addEventListener('click', e=>{
+    if(e.target.closest('#inboxAddBtn')){ addOne(); return; }
+    const act = e.target.closest('[data-act]'); if(!act) return;
+    const row = act.closest('.inbox-row'); if(!row) return;
+    const id = row.dataset.id;
+    const memo = state.inbox.find(m=>m.id===id);
+    if(!memo) return;
+    if(act.dataset.act==='triage'){ openTaskForm({ name: memo.text, fromInboxId: memo.id }); return; }
+    if(act.dataset.act==='delete'){
+      state.inbox = state.inbox.filter(m=>m.id!==id);
+      save(); render();
+    }
+  });
+  container.addEventListener('keydown', e=>{
+    if(e.target.id==='inboxAddInput' && e.key==='Enter') addOne();
   });
 }
 
@@ -624,14 +683,17 @@ function render(){
   const weekView = document.getElementById('weekView');
   const dayView = document.getElementById('dayView');
   const todoView = document.getElementById('todoView');
+  const inboxView = document.getElementById('inboxView');
   weekdayRow.style.display = viewMode==='month' ? 'grid' : 'none';
   monthGrid.style.display = viewMode==='month' ? 'flex' : 'none';
   weekView.style.display = viewMode==='week' ? 'block' : 'none';
   dayView.style.display = viewMode==='day' ? 'block' : 'none';
   todoView.style.display = viewMode==='todo' ? 'block' : 'none';
+  inboxView.style.display = viewMode==='inbox' ? 'block' : 'none';
   if(viewMode==='month') renderMonthView();
   else if(viewMode==='week') renderWeekView();
   else if(viewMode==='todo') renderTodoView();
+  else if(viewMode==='inbox') renderInboxView();
   else renderDayView();
   checkDueBanner();
 }
@@ -1106,6 +1168,7 @@ function openTaskForm(opts){
       if(!isEdit){
         const nextOrder = state.series.length ? Math.max(...state.series.map(s=>s.order??0)) + 1 : 0;
         state.series.push({ id: uid(), name, color: chosenColor, memo, time, dueDate: dueVal, kind: kindVal, importance: chosenImportance, endOffsetDays, recurrence, startDate: dateVal, until: null, deletedDates: [], occurrences: {}, order: nextOrder });
+        if(opts.fromInboxId) state.inbox = state.inbox.filter(m=>m.id!==opts.fromInboxId);
         save(); render(); closeSheet();
         return;
       }
@@ -1261,7 +1324,7 @@ function openMoreSheet(){
 }
 
 function exportData(){
-  const payload = JSON.stringify({ series: state.series, weeklyMemos: state.weeklyMemos }, null, 2);
+  const payload = JSON.stringify({ series: state.series, weeklyMemos: state.weeklyMemos, inbox: state.inbox }, null, 2);
   const blob = new Blob([payload], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
@@ -1276,23 +1339,24 @@ function exportData(){
 function importDataFromFile(file){
   const reader = new FileReader();
   reader.onload = () => {
-    let incomingSeries, incomingMemos;
+    let incomingSeries, incomingMemos, incomingInbox;
     try{
       const raw = JSON.parse(reader.result);
       incomingSeries = Array.isArray(raw) ? raw : (raw.series || []);
       incomingMemos = Array.isArray(raw) ? {} : (raw.weeklyMemos || {});
+      incomingInbox = Array.isArray(raw) ? [] : (raw.inbox || []);
       if(!Array.isArray(incomingSeries)) throw new Error('invalid shape');
     }catch(e){
       openImportResultSheet('読み込みエラー', 'ファイルの読み込みに失敗しました。正しいバックアップファイル（.json）か確認してください。');
       return;
     }
-    openImportConfirmSheet(incomingSeries, incomingMemos);
+    openImportConfirmSheet(incomingSeries, incomingMemos, incomingInbox);
   };
   reader.onerror = () => { openImportResultSheet('読み込みエラー', 'ファイルの読み込みに失敗しました。'); };
   reader.readAsText(file);
 }
 
-function openImportConfirmSheet(incomingSeries, incomingMemos){
+function openImportConfirmSheet(incomingSeries, incomingMemos, incomingInbox){
   const overlay = openSheet(`
     <button class="close-x" data-act="cancel">×</button>
     <h2>データを読み込みます</h2>
@@ -1308,6 +1372,7 @@ function openImportConfirmSheet(incomingSeries, incomingMemos){
     if(act.dataset.act==='confirm'){
       state.series = incomingSeries;
       state.weeklyMemos = incomingMemos;
+      state.inbox = incomingInbox || [];
       state.series.forEach((s,i)=>{ if(typeof s.order !== 'number') s.order = i; });
       save();
       closeSheet();

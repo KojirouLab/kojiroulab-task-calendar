@@ -164,7 +164,13 @@ function occurrencesOnDate(dateStr){
       }
     });
   });
-  list.sort((a,b)=> ((a.occState.completedDate?1:0)-(b.occState.completedDate?1:0)) || (importanceRank(a.series)-importanceRank(b.series)) || ((a.series.order??0)-(b.series.order??0)) || (a.occDate < b.occDate ? -1 : (a.occDate > b.occDate ? 1 : 0)));
+  list.sort((a,b)=>
+    ((isOverdue(b.series,b.occState)?1:0)-(isOverdue(a.series,a.occState)?1:0)) ||
+    ((a.occState.completedDate?1:0)-(b.occState.completedDate?1:0)) ||
+    (importanceRank(a.series)-importanceRank(b.series)) ||
+    ((a.series.order??0)-(b.series.order??0)) ||
+    (a.occDate < b.occDate ? -1 : (a.occDate > b.occDate ? 1 : 0))
+  );
   return list;
 }
 
@@ -392,12 +398,12 @@ function dayItemsHtml(dateStr, label){
       : `${it.occDate.slice(5)} 〜 ${isDone ? it.occState.completedDate.slice(5) : '進行中'}`;
     const imp = taskImportance(it.series);
     const impBadge = imp === 'medium' ? '' : `<span class="dti-imp imp-${imp}">${IMPORTANCE_LEVELS.find(l=>l.key===imp).label}</span>`;
-    return `<div class="day-task-item ${sched?'schedule':''}" data-sid="${it.series.id}" data-occ="${it.occDate}">
+    return `<div class="day-task-item ${sched?'schedule':''} ${overdue?'overdue-item':''}" data-sid="${it.series.id}" data-occ="${it.occDate}">
       <div class="dti-top">
         <span class="dti-dot" style="background:${displayColor(it.series, it.occState)}"></span>
         ${impBadge}
         ${displayTime(it.series, it.occState) ? `<span class="dti-time">${displayTime(it.series, it.occState)}</span>` : ''}
-        <span class="dti-name ${isDone?'done':''}">${escapeHtml(displayName(it.series, it.occState))}</span>
+        <span class="dti-name ${isDone?'done':''} ${overdue?'overdue':''}">${escapeHtml(displayName(it.series, it.occState))}</span>
         ${sched ? `<span class="dti-tag">予定</span>` : ''}
         ${overdue ? `<span class="dti-time" style="color:#c0392b; background:#fdeceb;">期限超過</span>` : ''}
         <div class="reorder-btns">

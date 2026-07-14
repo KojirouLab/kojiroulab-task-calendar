@@ -176,10 +176,12 @@
 
   .day-task-item{border:1px solid var(--line); border-radius:10px; padding:10px 11px; margin-bottom:8px;}
   .day-task-item.schedule{background:#fafaf9; border-style:dashed;}
+  .day-task-item.overdue-item{border-color:#e0a39c; background:#fdf4f3;}
   .dti-top{display:flex; align-items:center; gap:8px;}
   .dti-dot{width:10px; height:10px; border-radius:50%; flex-shrink:0;}
   .dti-name{font-size:13.5px; font-weight:700; flex:1;}
   .dti-name.done{text-decoration:line-through; color:var(--sub);}
+  .dti-name.overdue{color:#c0392b;}
   .dti-time{font-size:10.5px; font-weight:700; color:var(--accent); background:var(--accent-soft);
     border-radius:5px; padding:2px 5px; flex-shrink:0;}
   .dti-tag{font-size:10px; font-weight:700; color:#6a6bbd; background:#ecebfa; border-radius:5px; padding:2px 6px; flex-shrink:0;}

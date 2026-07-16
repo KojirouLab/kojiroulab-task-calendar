@@ -425,7 +425,11 @@ function dayItemsHtml(dateStr, label){
 
 function refreshDayContext(dateStr, label){
   render();
-  if(viewMode === 'month'){ closeSheet(); render_daySheetBody(dateStr, label); }
+  // Always close whatever sheet triggered this (edit form, scope-choice
+  // sheet, etc.) - previously this only happened in month view, so
+  // editing/completing from the 日/未完了 tabs left the sheet stuck open.
+  closeSheet();
+  if(viewMode === 'month'){ render_daySheetBody(dateStr, label); }
 }
 function backToDayContext(dateStr, label){
   closeSheet();

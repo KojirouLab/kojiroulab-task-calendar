@@ -568,6 +568,11 @@ function renderInboxView(){
     <div id="inboxItemsWrap">${inboxItemsHtml()}</div>
     <p class="inbox-sub">メモをタップすると、タスク登録フォームに内容が入った状態で開きます。登録すると、このインボックスからは消えます。</p>`;
   wireInboxContainer(host);
+  // #inboxItemsWrap is recreated every time renderInboxView() runs (e.g.
+  // switching tabs away and back), even though the outer container only
+  // gets its add-button/keydown listeners wired once - so this needs to
+  // run unconditionally, not just from inside that one-time wiring.
+  wireInboxRowClicks(host);
 }
 
 function inboxItemsHtml(){
@@ -583,18 +588,48 @@ function inboxItemsHtml(){
 function wireInboxContainer(container){
   if(container.dataset.wired) return;
   container.dataset.wired = '1';
-  const addOne = ()=>{
+  const confirmAdd = ()=>{
     const input = container.querySelector('#inboxAddInput');
     const text = input.value.trim();
     if(!text) return;
-    state.inbox.push({ id: uid(), text, createdAt: new Date().toISOString() });
-    save();
-    input.value = '';
-    render();
-    container.querySelector('#inboxAddInput').focus();
+    const overlay = openSheet(`
+      <h2>インボックスに追加しますか？</h2>
+      <p class="sheet-sub">${escapeHtml(text)}</p>
+      <div class="sheet-actions">
+        <button class="btn-cancel" data-act="cancel">キャンセル</button>
+        <button class="btn-primary" data-act="confirm">追加する</button>
+      </div>
+    `);
+    overlay.addEventListener('click', e=>{
+      const act = e.target.closest('[data-act]'); if(!act) return;
+      if(act.dataset.act==='cancel'){ closeSheet(); return; }
+      if(act.dataset.act==='confirm'){
+        state.inbox.push({ id: uid(), text, createdAt: new Date().toISOString() });
+        save();
+        closeSheet();
+        // update the list in place; don't call render() here, since that
+        // would tear down and recreate #inboxAddInput mid-IME-composition
+        // on some mobile keyboards, leaving stray uncommitted text behind.
+        input.value = '';
+        container.querySelector('#inboxItemsWrap').innerHTML = inboxItemsHtml();
+        wireInboxRowClicks(container);
+        input.focus();
+      }
+    });
   };
   container.addEventListener('click', e=>{
-    if(e.target.closest('#inboxAddBtn')){ addOne(); return; }
+    if(e.target.closest('#inboxAddBtn')){ confirmAdd(); return; }
+  });
+  container.addEventListener('keydown', e=>{
+    if(e.target.id==='inboxAddInput' && e.key==='Enter' && !e.isComposing) confirmAdd();
+  });
+}
+
+function wireInboxRowClicks(container){
+  const wrap = container.querySelector('#inboxItemsWrap');
+  if(!wrap || wrap.dataset.wired) return;
+  wrap.dataset.wired = '1';
+  wrap.addEventListener('click', e=>{
     const act = e.target.closest('[data-act]'); if(!act) return;
     const row = act.closest('.inbox-row'); if(!row) return;
     const id = row.dataset.id;
@@ -603,11 +638,9 @@ function wireInboxContainer(container){
     if(act.dataset.act==='triage'){ openTaskForm({ name: memo.text, fromInboxId: memo.id }); return; }
     if(act.dataset.act==='delete'){
       state.inbox = state.inbox.filter(m=>m.id!==id);
-      save(); render();
+      save();
+      container.querySelector('#inboxItemsWrap').innerHTML = inboxItemsHtml();
     }
-  });
-  container.addEventListener('keydown', e=>{
-    if(e.target.id==='inboxAddInput' && e.key==='Enter') addOne();
   });
 }
 

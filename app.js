@@ -242,7 +242,11 @@ function buildWeekRowHtml(week, occList, capLanes, inMonthFn){
         if(isOverdue(seg.series, seg.occState)) cls.push('overdue');
         if(isSchedule(seg.series)) cls.push('schedule');
         const t = displayTime(seg.series, seg.occState);
-        const nm = dayIdx===seg.colStart ? escapeHtml((t?t+' ':'') + displayName(seg.series, seg.occState)) : '';
+        // show the name at the start of each row's segment as before, and
+        // also on today's cell specifically - long-running bars only ever
+        // labeled their first day are unreadable once that day scrolls
+        // out of view, and "today" is the one column you always land on.
+        const nm = (dayIdx===seg.colStart || isToday) ? escapeHtml((t?t+' ':'') + displayName(seg.series, seg.occState)) : '';
         cellHtml += `<div class="${cls.join(' ')}" style="background:${displayColor(seg.series, seg.occState)}" data-sid="${seg.series.id}" data-occ="${seg.occDate}" data-date="${ds}">${nm}</div>`;
       } else {
         cellHtml += `<div class="bar-spacer"></div>`;

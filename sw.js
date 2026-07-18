@@ -1,4 +1,4 @@
-const CACHE_NAME = 'task-calendar-v2';
+const CACHE_NAME = 'task-calendar-v3';
 const SHELL_FILES = [
   './',
   './index.html',
@@ -31,8 +31,11 @@ self.addEventListener('fetch', (event) => {
 
   // network-first: always try to get the latest code/UI; only fall back to
   // the cached copy when offline, so deployed fixes show up immediately.
+  // cache: 'no-store' bypasses the browser's own HTTP cache too - GitHub
+  // Pages serves JS/HTML with a 10-minute max-age, so without this a
+  // "network" fetch could still silently return a stale cached response.
   event.respondWith(
-    fetch(event.request)
+    fetch(event.request, { cache: 'no-store' })
       .then((res) => {
         const copy = res.clone();
         caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy));

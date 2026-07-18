@@ -212,7 +212,14 @@ function buildWeekRowHtml(week, occList, capLanes, inMonthFn){
       const colEnd = week.indexOf(segEndStr);
       return { ...o, colStart, colEnd, isTrueStart: segStartStr===o.occDate, isTrueEnd: segEndStr===o.activeEnd };
     })
-    .sort((a,b)=> ((a.series.order??0)-(b.series.order??0)) || (a.colStart - b.colStart) || ((b.colEnd-b.colStart)-(a.colEnd-a.colStart)));
+    .sort((a,b)=>{
+      // items with a time sort chronologically ahead of anything sharing
+      // the same order/position; untimed items (displayTime === '') sort
+      // before timed ones, same as all-day events in most calendar apps.
+      const ta = displayTime(a.series, a.occState), tb = displayTime(b.series, b.occState);
+      if(ta !== tb) return ta < tb ? -1 : 1;
+      return ((a.series.order??0)-(b.series.order??0)) || (a.colStart - b.colStart) || ((b.colEnd-b.colStart)-(a.colEnd-a.colStart));
+    });
 
   const lanes = [];
   segments.forEach(seg=>{

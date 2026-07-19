@@ -24,6 +24,17 @@ const GOOGLE_CLIENT_SECRET = Deno.env.get('GOOGLE_CLIENT_SECRET')!;
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 
+// The browser's supabase-js client sends a CORS preflight (OPTIONS) before
+// the real POST. Without these headers - and without short-circuiting
+// OPTIONS before the auth check - that preflight itself gets treated as an
+// unauthenticated request and 401s, which fails the whole call before the
+// real request is ever sent.
+const CORS_HEADERS = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+};
+
 const WD_ICAL = ['SU', 'MO', 'TU', 'WE', 'TH', 'FR', 'SA'];
 
 function toRRule(recurrence: any, until: string | null): string | null {
@@ -80,11 +91,14 @@ async function gcal(accessToken: string, calendarId: string, method: string, pat
 }
 
 Deno.serve(async (req) => {
+  if (req.method === 'OPTIONS') {
+    return new Response(null, { headers: CORS_HEADERS });
+  }
   try {
     const jwt = (req.headers.get('Authorization') || '').replace('Bearer ', '');
     const sb = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
     const { data: { user }, error: userErr } = await sb.auth.getUser(jwt);
-    if (userErr || !user) return new Response('unauthorized', { status: 401 });
+    if (userErr || !user) return new Response('unauthorized', { status: 401, headers: CORS_HEADERS });
 
     const { data: account } = await sb
       .from('google_calendar_accounts')
@@ -92,7 +106,7 @@ Deno.serve(async (req) => {
       .eq('user_id', user.id)
       .maybeSingle();
     if (!account) {
-      return new Response(JSON.stringify({ connected: false }), { headers: { 'Content-Type': 'application/json' } });
+      return new Response(JSON.stringify({ connected: false }), { headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' } });
     }
 
     const { data: appState } = await sb.from('app_state').select('data').eq('user_id', user.id).maybeSingle();
@@ -147,13 +161,13 @@ Deno.serve(async (req) => {
     }
 
     return new Response(JSON.stringify({ connected: true, updates }), {
-      headers: { 'Content-Type': 'application/json' },
+      headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' },
     });
   } catch (e) {
     console.error(e);
     return new Response(JSON.stringify({ error: String(e) }), {
       status: 500,
-      headers: { 'Content-Type': 'application/json' },
+      headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' },
     });
   }
 });

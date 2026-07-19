@@ -113,7 +113,7 @@ Deno.serve(async (req) => {
 
     const { data: account } = await sb
       .from('google_calendar_accounts')
-      .select('refresh_token, calendar_id')
+      .select('refresh_token, calendar_id, tracked_event_ids')
       .eq('user_id', user.id)
       .maybeSingle();
     if (!account) {
@@ -143,6 +143,7 @@ Deno.serve(async (req) => {
     }
 
     const updates: { id: string; googleEventId: string | null }[] = [];
+    const currentEventIds = new Set<string>();
 
     for (const s of series) {
       const isSchedule = s.kind === 'schedule';
@@ -176,18 +177,38 @@ Deno.serve(async (req) => {
       };
 
       if (s.googleEventId) {
+        currentEventIds.add(s.googleEventId);
         const updated = await gcal(accessToken, calendarId, 'PATCH', `/events/${s.googleEventId}`, eventBody);
         if (!updated) {
           const created = await gcal(accessToken, calendarId, 'POST', '/events', eventBody);
           updates.push({ id: s.id, googleEventId: created.id });
+          currentEventIds.delete(s.googleEventId);
+          currentEventIds.add(created.id);
         }
       } else {
         const created = await gcal(accessToken, calendarId, 'POST', '/events', eventBody);
         updates.push({ id: s.id, googleEventId: created.id });
+        currentEventIds.add(created.id);
       }
     }
 
-    return new Response(JSON.stringify({ connected: true, updates }), {
+    // Reconcile: delete any event this app created that's no longer backed
+    // by a series (the series was deleted outright, or a still-in-flight
+    // creation lost its race with a deletion). This is what actually makes
+    // deletions reliable, rather than depending on the client to catch and
+    // report the right googleEventId at exactly the right moment - by the
+    // very next sync, every event we don't recognize gets cleaned up.
+    const previouslyTracked: string[] = Array.isArray(account.tracked_event_ids) ? account.tracked_event_ids : [];
+    const orphaned = previouslyTracked.filter((id) => !currentEventIds.has(id));
+    for (const eventId of orphaned) {
+      await gcal(accessToken, calendarId, 'DELETE', `/events/${eventId}`);
+    }
+    await sb
+      .from('google_calendar_accounts')
+      .update({ tracked_event_ids: Array.from(currentEventIds) })
+      .eq('user_id', user.id);
+
+    return new Response(JSON.stringify({ connected: true, updates, cleanedUp: orphaned.length }), {
       headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' },
     });
   } catch (e) {

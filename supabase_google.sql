@@ -4,7 +4,11 @@ create table if not exists google_calendar_accounts (
   user_id uuid primary key references auth.users (id) on delete cascade,
   refresh_token text not null,
   calendar_id text not null default 'primary',
-  connected_at timestamptz not null default now()
+  connected_at timestamptz not null default now(),
+  -- every googleEventId this app created, as of the last sync. Diffing this
+  -- against the current series list each push is how deletions actually
+  -- get cleaned up on Google's side - see push-to-google-calendar.
+  tracked_event_ids jsonb not null default '[]'
 );
 
 alter table google_calendar_accounts enable row level security;

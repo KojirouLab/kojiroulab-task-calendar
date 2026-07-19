@@ -118,22 +118,39 @@ async function disconnectGoogleCalendar() {
   googleConnected = false;
 }
 
+// flushSave() fires pushToGoogleCalendar() after every save, and pushes can
+// take a couple seconds (token refresh + several Google API calls). Without
+// this guard, saving again while a push is still in flight starts a second,
+// overlapping push that reads the same not-yet-updated googleEventId state
+// from the server and creates a duplicate event instead of updating the
+// existing one. Coalesce concurrent calls into a single follow-up run.
+let googlePushInFlight = false;
+let googlePushQueued = false;
 async function pushToGoogleCalendar() {
   if (!googleConnected || !sb) return;
+  if (googlePushInFlight) { googlePushQueued = true; return; }
+  googlePushInFlight = true;
   try {
     const { data, error } = await sb.functions.invoke('push-to-google-calendar');
-    if (error || !data || !data.updates) return;
-    let changed = false;
-    data.updates.forEach(u => {
-      const series = state.series.find(s => s.id === u.id);
-      if (!series) return;
-      if (u.googleEventId) series.googleEventId = u.googleEventId;
-      else delete series.googleEventId;
-      changed = true;
-    });
-    if (changed) save();
+    if (!error && data && data.updates) {
+      let changed = false;
+      data.updates.forEach(u => {
+        const series = state.series.find(s => s.id === u.id);
+        if (!series) return;
+        if (u.googleEventId) series.googleEventId = u.googleEventId;
+        else delete series.googleEventId;
+        changed = true;
+      });
+      if (changed) save();
+    }
   } catch (e) {
     console.error('google calendar push failed', e);
+  } finally {
+    googlePushInFlight = false;
+    if (googlePushQueued) {
+      googlePushQueued = false;
+      pushToGoogleCalendar();
+    }
   }
 }
 

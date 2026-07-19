@@ -95,6 +95,16 @@ Deno.serve(async (req) => {
     return new Response(null, { headers: CORS_HEADERS });
   }
   try {
+    // explicit deletions (a series that was removed from state.series
+    // entirely, so this is the only place its googleEventId still exists)
+    let deleteEventIds: string[] = [];
+    if (req.method === 'POST') {
+      try {
+        const body = await req.json();
+        if (Array.isArray(body?.deleteEventIds)) deleteEventIds = body.deleteEventIds;
+      } catch { /* no/empty body is fine - just a regular sync push */ }
+    }
+
     const jwt = (req.headers.get('Authorization') || '').replace('Bearer ', '');
     const sb = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
     const { data: { user }, error: userErr } = await sb.auth.getUser(jwt);
@@ -114,6 +124,21 @@ Deno.serve(async (req) => {
 
     const accessToken = await refreshAccessToken(account.refresh_token);
     const calendarId = account.calendar_id || 'primary';
+
+    if (deleteEventIds.length) {
+      // explicit delete-only call: the client fires this immediately when a
+      // series is removed, separately from (and before) its own save()
+      // persists that removal. app_state here may still list the deleted
+      // series, so don't run the full sync below - it would just recreate
+      // what we're deleting. The client's regular save() triggers its own
+      // ordinary push afterwards once the removal is actually persisted.
+      for (const eventId of deleteEventIds) {
+        await gcal(accessToken, calendarId, 'DELETE', `/events/${eventId}`);
+      }
+      return new Response(JSON.stringify({ connected: true, updates: [] }), {
+        headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' },
+      });
+    }
 
     const updates: { id: string; googleEventId: string | null }[] = [];
 

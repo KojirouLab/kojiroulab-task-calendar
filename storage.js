@@ -118,6 +118,20 @@ async function disconnectGoogleCalendar() {
   googleConnected = false;
 }
 
+// Deleting a series removes it from state.series entirely, so its
+// googleEventId is gone by the time the next regular push runs - the sync
+// loop only ever looks at what's currently in the list, it has no memory of
+// what used to be there. Report the deletion explicitly, right away, while
+// we still have the id.
+async function deleteGoogleCalendarEvent(googleEventId) {
+  if (!googleConnected || !sb || !googleEventId) return;
+  try {
+    await sb.functions.invoke('push-to-google-calendar', { body: { deleteEventIds: [googleEventId] } });
+  } catch (e) {
+    console.error('google calendar delete failed', e);
+  }
+}
+
 // flushSave() fires pushToGoogleCalendar() after every save, and pushes can
 // take a couple seconds (token refresh + several Google API calls). Without
 // this guard, saving again while a push is still in flight starts a second,

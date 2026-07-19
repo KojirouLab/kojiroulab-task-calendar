@@ -1009,7 +1009,11 @@ function startDeleteFlow(sid, occDate, dateStr, label){
     overlay.addEventListener('click', e=>{
       const act = e.target.closest('[data-act]'); if(!act) return;
       if(act.dataset.act==='back'){ backToDayContext(dateStr, label); }
-      if(act.dataset.act==='del'){ state.series = state.series.filter(s=>s.id!==sid); save(); refreshDayContext(dateStr, label); }
+      if(act.dataset.act==='del'){
+        if(series.googleEventId) deleteGoogleCalendarEvent(series.googleEventId);
+        state.series = state.series.filter(s=>s.id!==sid);
+        save(); refreshDayContext(dateStr, label);
+      }
     });
     return;
   }

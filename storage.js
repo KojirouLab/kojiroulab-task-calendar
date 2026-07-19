@@ -55,6 +55,7 @@ async function load() {
   state.series.forEach((s, i) => { if (typeof s.order !== 'number') s.order = i; });
   loaded = true;
   render();
+  checkGoogleConnected();
 }
 
 let pendingSavePayload = null;
@@ -76,13 +77,83 @@ async function flushSave() {
       data: payload,
       updated_at: new Date().toISOString(),
     });
-    if (!error) { pendingSavePayload = null; hideSaveError(); }
+    if (!error) { pendingSavePayload = null; hideSaveError(); pushToGoogleCalendar(); }
     else { showSaveError(); }
   } catch (e) {
     console.error('save failed', e);
     showSaveError();
   }
 }
+
+// ---- Google Calendar sync (Phase 1: push only, this app -> Google) ----
+const GOOGLE_CLIENT_ID = '647666710506-ei4vdt815losatj0sl3r22k1b4bmth7d.apps.googleusercontent.com';
+let googleConnected = false;
+
+async function checkGoogleConnected() {
+  if (!sb) return;
+  const { data } = await sb.from('google_calendar_accounts').select('user_id').maybeSingle();
+  googleConnected = !!data;
+}
+
+async function connectGoogleCalendar() {
+  const { data: { session } } = await sb.auth.getSession();
+  if (!session) return;
+  const redirectUri = `${SUPABASE_URL}/functions/v1/google-oauth-callback`;
+  const params = new URLSearchParams({
+    client_id: GOOGLE_CLIENT_ID,
+    redirect_uri: redirectUri,
+    response_type: 'code',
+    scope: 'https://www.googleapis.com/auth/calendar.events',
+    access_type: 'offline',
+    prompt: 'consent', // force a fresh consent every time so Google always returns a refresh_token
+    state: session.access_token,
+  });
+  window.location.href = `https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}`;
+}
+
+async function disconnectGoogleCalendar() {
+  const { data: { user } } = await sb.auth.getUser();
+  if (!user) return;
+  await sb.from('google_calendar_accounts').delete().eq('user_id', user.id);
+  googleConnected = false;
+}
+
+async function pushToGoogleCalendar() {
+  if (!googleConnected || !sb) return;
+  try {
+    const { data, error } = await sb.functions.invoke('push-to-google-calendar');
+    if (error || !data || !data.updates) return;
+    let changed = false;
+    data.updates.forEach(u => {
+      const series = state.series.find(s => s.id === u.id);
+      if (!series) return;
+      if (u.googleEventId) series.googleEventId = u.googleEventId;
+      else delete series.googleEventId;
+      changed = true;
+    });
+    if (changed) save();
+  } catch (e) {
+    console.error('google calendar push failed', e);
+  }
+}
+
+// handle the redirect back from google-oauth-callback (?google=connected|error)
+(function handleGoogleAuthRedirect() {
+  const params = new URLSearchParams(window.location.search);
+  const status = params.get('google');
+  if (!status) return;
+  const detail = params.get('detail');
+  history.replaceState(null, '', window.location.pathname);
+  setTimeout(() => {
+    if (status === 'connected') {
+      googleConnected = true;
+      alert('Googleカレンダーと連携しました。');
+      pushToGoogleCalendar();
+    } else {
+      alert('Googleカレンダー連携に失敗しました' + (detail ? `（${detail}）` : ''));
+    }
+  }, 300);
+})();
 function showSaveError() {
   const el = document.getElementById('saveError'); if (!el) return;
   el.querySelector('.msg').textContent = '保存に失敗しました（通信エラー）。';

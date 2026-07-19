@@ -1363,6 +1363,7 @@ function openMoreSheet(){
       <button class="btn-outline" data-act="reorder">⇅ 並び替え</button>
       <button class="btn-outline" data-act="export">⬇ データを書き出す（バックアップ保存）</button>
       <button class="btn-outline" data-act="import">⬆ データを読み込む（バックアップから復元）</button>
+      <button class="btn-outline" data-act="google">${googleConnected ? '📅 Googleカレンダー連携を解除' : '📅 Googleカレンダーと連携'}</button>
       <button class="btn-outline" data-act="signout">ログアウト</button>
       <button class="btn-cancel" data-act="close">閉じる</button>
     </div>
@@ -1374,6 +1375,15 @@ function openMoreSheet(){
     if(act.dataset.act==='export'){ exportData(); return; }
     if(act.dataset.act==='import'){ closeSheet(); document.getElementById('importFileInput').click(); return; }
     if(act.dataset.act==='signout'){ closeSheet(); sb.auth.signOut(); return; }
+    if(act.dataset.act==='google'){
+      closeSheet();
+      if(googleConnected){
+        if(confirm('Googleカレンダーとの連携を解除しますか？')) disconnectGoogleCalendar();
+      } else {
+        connectGoogleCalendar();
+      }
+      return;
+    }
   });
 }
 

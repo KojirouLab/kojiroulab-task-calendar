@@ -102,7 +102,8 @@ Deno.serve(async (req) => {
       try {
         const body = await req.json();
         if (Array.isArray(body?.deleteEventIds)) deleteEventIds = body.deleteEventIds;
-      } catch { /* no/empty body is fine - just a regular sync push */ }
+        console.log('request body parsed', { deleteEventIds });
+      } catch (e) { console.log('no/empty request body', String(e)); }
     }
 
     const jwt = (req.headers.get('Authorization') || '').replace('Bearer ', '');
@@ -133,7 +134,8 @@ Deno.serve(async (req) => {
       // what we're deleting. The client's regular save() triggers its own
       // ordinary push afterwards once the removal is actually persisted.
       for (const eventId of deleteEventIds) {
-        await gcal(accessToken, calendarId, 'DELETE', `/events/${eventId}`);
+        const result = await gcal(accessToken, calendarId, 'DELETE', `/events/${eventId}`);
+        console.log('delete requested', { eventId, result });
       }
       return new Response(JSON.stringify({ connected: true, updates: [] }), {
         headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' },

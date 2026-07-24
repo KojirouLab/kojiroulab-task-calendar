@@ -14,7 +14,6 @@ function importanceRank(series){ return IMPORTANCE_RANK[taskImportance(series)] 
 
 let viewDate = new Date(); // focused date, drives month/week/day views
 let viewMode = 'month'; // 'month' | 'week' | 'day'
-let weekMemoSaveTimer = null;
 
 function uid(){ return Math.random().toString(36).slice(2,10); }
 function todayStr(){ return fmt(new Date()); }
@@ -265,8 +264,6 @@ function buildWeekRowHtml(week, occList, capLanes, inMonthFn){
 
     html += `<div class="day-cell ${inMonth?'':'out'} ${wdClass} ${isToday?'is-today':''}" data-date="${ds}">${cellHtml}</div>`;
   });
-  const memoVal = state.weeklyMemos[weekStart] || '';
-  html += `<div class="week-memo"><textarea class="week-memo-input" data-week="${weekStart}" placeholder="今週のメモ">${escapeHtml(memoVal)}</textarea></div>`;
   html += '</div>';
   return html;
 }
@@ -274,13 +271,6 @@ function buildWeekRowHtml(week, occList, capLanes, inMonthFn){
 function bindGridInteractions(host){
   host.querySelectorAll('.day-cell').forEach(el=>{
     el.addEventListener('click', ()=> openDaySheet(el.dataset.date));
-  });
-  host.querySelectorAll('.week-memo-input').forEach(ta=>{
-    ta.addEventListener('input', ()=>{
-      state.weeklyMemos[ta.dataset.week] = ta.value;
-      clearTimeout(weekMemoSaveTimer);
-      weekMemoSaveTimer = setTimeout(save, 500);
-    });
   });
 }
 
@@ -312,12 +302,8 @@ function renderMonthView(){
 function renderWeekView(){
   const weekStart = addDays(viewDate, -viewDate.getDay());
   const today = todayStr();
-  const memoVal = state.weeklyMemos[fmt(weekStart)] || '';
 
-  let html = `<div class="week-memo-block">
-    <label>今週のメモ</label>
-    <textarea class="week-memo-input" data-week="${fmt(weekStart)}" placeholder="今週のメモ">${escapeHtml(memoVal)}</textarea>
-  </div>`;
+  let html = '';
 
   for(let j=0;j<7;j++){
     const d = addDays(weekStart, j);
@@ -337,13 +323,6 @@ function renderWeekView(){
   const host = document.getElementById('weekView');
   host.innerHTML = html;
   wireWeekAgenda(host);
-  host.querySelectorAll('.week-memo-input').forEach(ta=>{
-    ta.addEventListener('input', ()=>{
-      state.weeklyMemos[ta.dataset.week] = ta.value;
-      clearTimeout(weekMemoSaveTimer);
-      weekMemoSaveTimer = setTimeout(save, 500);
-    });
-  });
 }
 
 function wireWeekAgenda(container){
@@ -1392,7 +1371,7 @@ function openMoreSheet(){
 }
 
 function exportData(){
-  const payload = JSON.stringify({ series: state.series, weeklyMemos: state.weeklyMemos, inbox: state.inbox }, null, 2);
+  const payload = JSON.stringify({ series: state.series, inbox: state.inbox }, null, 2);
   const blob = new Blob([payload], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
@@ -1407,24 +1386,23 @@ function exportData(){
 function importDataFromFile(file){
   const reader = new FileReader();
   reader.onload = () => {
-    let incomingSeries, incomingMemos, incomingInbox;
+    let incomingSeries, incomingInbox;
     try{
       const raw = JSON.parse(reader.result);
       incomingSeries = Array.isArray(raw) ? raw : (raw.series || []);
-      incomingMemos = Array.isArray(raw) ? {} : (raw.weeklyMemos || {});
       incomingInbox = Array.isArray(raw) ? [] : (raw.inbox || []);
       if(!Array.isArray(incomingSeries)) throw new Error('invalid shape');
     }catch(e){
       openImportResultSheet('読み込みエラー', 'ファイルの読み込みに失敗しました。正しいバックアップファイル（.json）か確認してください。');
       return;
     }
-    openImportConfirmSheet(incomingSeries, incomingMemos, incomingInbox);
+    openImportConfirmSheet(incomingSeries, incomingInbox);
   };
   reader.onerror = () => { openImportResultSheet('読み込みエラー', 'ファイルの読み込みに失敗しました。'); };
   reader.readAsText(file);
 }
 
-function openImportConfirmSheet(incomingSeries, incomingMemos, incomingInbox){
+function openImportConfirmSheet(incomingSeries, incomingInbox){
   const overlay = openSheet(`
     <button class="close-x" data-act="cancel">×</button>
     <h2>データを読み込みます</h2>
@@ -1439,7 +1417,6 @@ function openImportConfirmSheet(incomingSeries, incomingMemos, incomingInbox){
     if(act.dataset.act==='cancel'){ closeSheet(); return; }
     if(act.dataset.act==='confirm'){
       state.series = incomingSeries;
-      state.weeklyMemos = incomingMemos;
       state.inbox = incomingInbox || [];
       state.series.forEach((s,i)=>{ if(typeof s.order !== 'number') s.order = i; });
       save();

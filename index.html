@@ -70,10 +70,6 @@
   .dayview-empty{padding:40px 16px; text-align:center; color:var(--sub); font-size:13px;}
 
   #weekView{padding:12px;}
-  .week-memo-block{margin-bottom:14px; padding:10px 12px; background:#faf8f3; border:1px solid var(--line); border-radius:10px;}
-  .week-memo-block label{display:block; font-size:11px; color:var(--sub); font-weight:700; margin-bottom:5px;}
-  .week-memo-block textarea{width:100%; min-height:52px; border:1px solid var(--line); border-radius:8px; background:#fff;
-    font-size:12.5px; font-family:inherit; color:var(--ink); padding:7px 8px; resize:vertical;}
   .week-day-sec{margin-bottom:16px; padding-bottom:14px; border-bottom:1px solid var(--line);}
   .week-day-sec:last-child{border-bottom:none;}
   .week-day-head{display:flex; align-items:center; gap:8px; margin-bottom:8px;}
@@ -87,27 +83,19 @@
   .week-day-items .dayview-empty{padding:2px 0 2px 32px; text-align:left; font-size:11.5px; color:var(--sub);}
   .week-day-items .day-task-item{margin-left:0;}
 
-  .weekday-row{display:grid; grid-template-columns:repeat(7,1fr) 92px; flex-shrink:0; background:var(--panel); border-bottom:1px solid var(--line);}
+  .weekday-row{display:grid; grid-template-columns:repeat(7,1fr); flex-shrink:0; background:var(--panel); border-bottom:1px solid var(--line);}
   .weekday-row div{padding:6px 0; text-align:center; font-size:10.5px; color:var(--sub); font-weight:700;}
   .weekday-row div.wd-sun{color:var(--sun);}
   .weekday-row div.wd-sat{color:var(--sat);}
-  .weekday-row .wd-memo-head{font-size:9.5px; color:var(--sub);}
 
   .grid-wrap{flex:1; min-height:0; overflow-y:auto; background:var(--bg);}
   .month-grid{display:flex; flex-direction:column;}
-  .week-row{display:grid; grid-template-columns:repeat(7,1fr) 92px; border-bottom:1px solid var(--line);}
+  .week-row{display:grid; grid-template-columns:repeat(7,1fr); border-bottom:1px solid var(--line);}
   .day-cell{
     border-right:1px solid var(--line); padding:4px 3px 6px; min-height:78px; min-width:0;
     display:flex; flex-direction:column; gap:2px; overflow:hidden;
   }
   .week-view .day-cell{min-height:180px;}
-  .week-memo{border-left:1px solid var(--line); background:#faf8f3; padding:4px;}
-  .week-memo-input{
-    width:100%; height:100%; min-height:78px; border:none; background:transparent; resize:none;
-    font-size:10px; line-height:1.4; font-family:inherit; color:var(--ink); padding:3px;
-  }
-  .week-memo-input::placeholder{color:#b8b2a4;}
-  .week-memo-input:focus{outline:1px solid var(--accent); background:#fff; border-radius:5px;}
   .day-cell.out{background:#efece4;}
   .day-cell .dnum{
     font-size:11px; font-weight:700; width:20px; height:20px; border-radius:50%;
@@ -273,7 +261,7 @@
     <button class="view-tab" id="tabInbox" data-mode="inbox">インボックス</button>
   </div>
   <div class="weekday-row" id="weekdayRow">
-    <div class="wd-sun">日</div><div>月</div><div>火</div><div>水</div><div>木</div><div>金</div><div class="wd-sat">土</div><div class="wd-memo-head">メモ</div>
+    <div class="wd-sun">日</div><div>月</div><div>火</div><div>水</div><div>木</div><div>金</div><div class="wd-sat">土</div>
   </div>
   <div class="grid-wrap">
     <div class="month-grid" id="monthGrid"></div>

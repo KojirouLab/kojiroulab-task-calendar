@@ -347,6 +347,7 @@ function wireWeekAgenda(container){
     }
     if(act.dataset.act==='log'){ openLogSheet(sid, occDate, dateStr, label); }
     if(act.dataset.act==='edit'){ startEditFlow(sid, occDate, dateStr, label); }
+    if(act.dataset.act==='toinbox'){ startMoveToInboxFlow(sid, dateStr, label); }
     if(act.dataset.act==='delete'){ startDeleteFlow(sid, occDate, dateStr, label); }
     if(act.dataset.act==='moveup' || act.dataset.act==='movedown'){
       const items = occurrencesOnDate(dateStr);
@@ -407,6 +408,7 @@ function dayItemsHtml(dateStr, label){
         ${sched ? '' : `<button data-act="complete" class="${isDone?'on':''}">${isDone?'完了済 ✓':'完了にする'}</button>
         <button data-act="log">この日の記録 (${logs.length})</button>`}
         <button data-act="edit">編集</button>
+        <button data-act="toinbox">インボックスへ戻す</button>
         <button data-act="delete">削除</button>
       </div>
     </div>`;
@@ -673,6 +675,10 @@ function wireDayItemsContainer(container, dateStr, label){
     if(act.dataset.act==='edit'){
       closeSheet();
       startEditFlow(sid, occDate, curDateStr, curLabel);
+    }
+    if(act.dataset.act==='toinbox'){
+      closeSheet();
+      startMoveToInboxFlow(sid, curDateStr, curLabel);
     }
     if(act.dataset.act==='delete'){
       closeSheet();
@@ -974,6 +980,33 @@ function startEditFlow(sid, occDate, backDateStr, backLabel){
     backDateStr, backLabel
   });
 }
+// Moves a task/schedule back to the inbox as a plain-text memo, discarding
+// its date/recurrence/color/etc entirely - the reverse of triaging an inbox
+// memo into a task. Applies to the whole series (not a single occurrence);
+// there's no sensible way to peel just one occurrence off of a recurring
+// series back into a single memo.
+function startMoveToInboxFlow(sid, dateStr, label){
+  const series = state.series.find(s=>s.id===sid);
+  if(!series) return;
+  const overlay = openSheet(`
+    <h2>「${escapeHtml(series.name)}」をインボックスへ戻しますか？</h2>
+    <p class="sheet-sub">日付・繰り返し・記録などの情報は失われ、インボックスに1件のメモとして残ります。</p>
+    <div class="sheet-actions">
+      <button class="btn-cancel" data-act="back">キャンセル</button>
+      <button class="btn-danger" data-act="move">戻す</button>
+    </div>`);
+  overlay.addEventListener('click', e=>{
+    const act = e.target.closest('[data-act]'); if(!act) return;
+    if(act.dataset.act==='back'){ backToDayContext(dateStr, label); return; }
+    if(act.dataset.act==='move'){
+      if(series.googleEventId) deleteGoogleCalendarEvent(series.googleEventId);
+      state.inbox.push({ id: uid(), text: series.name, createdAt: new Date().toISOString() });
+      state.series = state.series.filter(s=>s.id!==sid);
+      save(); refreshDayContext(dateStr, label);
+    }
+  });
+}
+
 function startDeleteFlow(sid, occDate, dateStr, label){
   const series = state.series.find(s=>s.id===sid);
   if(!series) return;
